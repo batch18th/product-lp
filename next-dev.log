@@ -1,0 +1,50 @@
+   ▲ Next.js 15.5.18
+   - Local:        http://127.0.0.1:3000
+   - Network:      http://127.0.0.1:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 43.3s
+ ○ Compiling / ...
+ ✓ Compiled / in 7.1s (717 modules)
+ HEAD / 200 in 14160ms
+ HEAD / 200 in 877ms
+ ○ Compiling /api/order ...
+ ✓ Compiled /api/order in 55.3s (1873 modules)
+[Google Sheets] Spreadsheet ID: 1hKqnr7ASeUD9pLpjS6KuJpP-nORozoapqnlf4t9KYfU
+[Google Sheets] Sheet tab name: Sheet1
+[Google Sheets] Service account email: faithwear-nepal-t-shir-order@faithwear-nepal.iam.gserviceaccount.com
+[Google Sheets] Loading spreadsheet metadata.
+[Google Sheets] Existing sheet tabs: ["Sheet1","T-shirt order"]
+[Google Sheets] Target tab exists: Sheet1
+[Google Sheets] Checking header row: 'Sheet1'!A1:M1
+[Google Sheets] Header row missing. Writing headers.
+[Google Sheets] Appending row: ["FWN-1778428346076-R0VRS","10 May 2026, 21:37","Sheet1 Visible Test Order","9800000002","batch18th1990@gmail.com","Sheet1 visible test - please ignore","Christian Bible Verse Print T-Shirt",1,999,999,"Cash On Delivery","New Order",""]
+[Google Sheets] Append response: {"spreadsheetId":"1hKqnr7ASeUD9pLpjS6KuJpP-nORozoapqnlf4t9KYfU","tableRange":"Sheet1!A1:M1","updatedRange":"Sheet1!A2:M2","updatedRows":1,"updatedColumns":13,"updatedCells":13}
+ POST /api/order 200 in 93620ms
+ GET / 200 in 3278ms
+ GET / 200 in 584ms
+ GET / 200 in 342ms
+ ○ Compiling /checkout ...
+ ✓ Compiled /checkout in 4.9s (742 modules)
+ GET /checkout?productName=Christian+Bible+Verse+Print+T-Shirt&quantity=4&pricePerPiece=999&totalPrice=3596 200 in 5737ms
+ ○ Compiling /api/order ...
+ ✓ Compiled /api/order in 1874ms (1242 modules)
+[Google Sheets] Spreadsheet ID: 1hKqnr7ASeUD9pLpjS6KuJpP-nORozoapqnlf4t9KYfU
+[Google Sheets] Sheet tab name: Sheet1
+[Google Sheets] Service account email: faithwear-nepal-t-shir-order@faithwear-nepal.iam.gserviceaccount.com
+[Google Sheets] Loading spreadsheet metadata.
+[Google Sheets] Existing sheet tabs: ["Sheet1","T-shirt order"]
+[Google Sheets] Target tab exists: Sheet1
+[Google Sheets] Checking header row: 'Sheet1'!A1:M1
+[Google Sheets] Header row exists: ["Order ID","Date & Time","Customer Name","Phone Number","Email Address","Exact Location","Product Name","Quantity","Price Per Piece","Total Price","Payment Method","Order Status","Notes"]
+[Google Sheets] Appending row: ["FWN-1778428771303-3MYTA","10 May 2026, 21:44","melody","9826160752","sommelodies0752@gmail.com","bagar","Christian Bible Verse Print T-Shirt",4,999,3596,"Cash On Delivery","New Order",""]
+[Google Sheets] Append response: {"spreadsheetId":"1hKqnr7ASeUD9pLpjS6KuJpP-nORozoapqnlf4t9KYfU","tableRange":"Sheet1!A1:M2","updatedRange":"Sheet1!A3:M3","updatedRows":1,"updatedColumns":13,"updatedCells":13}
+ POST /api/order 200 in 21928ms
+ ○ Compiling /thank-you ...
+ ✓ Compiled /thank-you in 2.6s (1860 modules)
+ GET /thank-you?orderId=FWN-1778428771303-3MYTA&productName=Christian+Bible+Verse+Print+T-Shirt&quantity=4&totalPrice=3596 200 in 3668ms
+ ✓ Compiled in 12.8s (296 modules)
+ ✓ Compiled in 593ms (296 modules)
+ ✓ Compiled in 78.6s (296 modules)
+ ✓ Compiled in 833ms (296 modules)
