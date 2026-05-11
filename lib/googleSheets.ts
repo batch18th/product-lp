@@ -1,5 +1,52 @@
-import { google } from "googleapis";
 import type { OrderRecord } from "./order";
+
+type SheetsClient = {
+  spreadsheets: {
+    get: (params: Record<string, unknown>) => Promise<{
+      data: {
+        sheets?: Array<{
+          properties?: {
+            title?: string;
+            sheetId?: number | null;
+          };
+        }>;
+      };
+    }>;
+    batchUpdate: (params: Record<string, unknown>) => Promise<{
+      data: {
+        replies?: Array<{
+          addSheet?: {
+            properties?: {
+              sheetId?: number | null;
+            };
+          };
+        }>;
+      };
+    }>;
+    values: {
+      get: (params: Record<string, unknown>) => Promise<{
+        data: {
+          values?: string[][];
+        };
+      }>;
+      update: (params: Record<string, unknown>) => Promise<unknown>;
+      append: (params: Record<string, unknown>) => Promise<{
+        data: {
+          spreadsheetId?: string;
+          tableRange?: string;
+          updates?: {
+            updatedRange?: string;
+            updatedRows?: number;
+            updatedColumns?: number;
+            updatedCells?: number;
+          };
+        };
+      }>;
+    };
+  };
+};
+
+type BatchUpdateRequest = Record<string, unknown>;
 
 const columns = [
   "Order ID",
@@ -41,13 +88,7 @@ export async function appendOrderToSheet(order: OrderRecord) {
     );
   }
 
-  const auth = new google.auth.JWT({
-    email: serviceAccountEmail,
-    key: privateKey,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
-
-  const sheets = google.sheets({ version: "v4", auth });
+  const sheets = await createSheetsClient(serviceAccountEmail, privateKey);
   const numericSheetId = await ensureSheetExists(sheets, sheetId, tabName);
   const quotedTabName = quoteSheetName(tabName);
   const row = [
@@ -67,7 +108,7 @@ export async function appendOrderToSheet(order: OrderRecord) {
   ];
 
   await ensureHeaderRow(sheets, sheetId, quotedTabName);
-  await applyPremiumSheetLayout(sheets, sheetId, numericSheetId);
+  await safelyApplyPremiumSheetLayout(sheets, sheetId, tabName, numericSheetId);
 
   console.info("[Google Sheets] Appending row:", JSON.stringify(row));
 
@@ -114,22 +155,16 @@ export async function formatOrderSheetLayout() {
     );
   }
 
-  const auth = new google.auth.JWT({
-    email: serviceAccountEmail,
-    key: privateKey,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
-
-  const sheets = google.sheets({ version: "v4", auth });
+  const sheets = await createSheetsClient(serviceAccountEmail, privateKey);
   const numericSheetId = await ensureSheetExists(sheets, sheetId, tabName);
   const quotedTabName = quoteSheetName(tabName);
 
   await ensureHeaderRow(sheets, sheetId, quotedTabName);
-  await applyPremiumSheetLayout(sheets, sheetId, numericSheetId);
+  await safelyApplyPremiumSheetLayout(sheets, sheetId, tabName, numericSheetId);
 }
 
 async function ensureHeaderRow(
-  sheets: ReturnType<typeof google.sheets>,
+  sheets: SheetsClient,
   spreadsheetId: string,
   quotedTabName: string,
 ) {
@@ -157,10 +192,10 @@ async function ensureHeaderRow(
 }
 
 async function ensureSheetExists(
-  sheets: ReturnType<typeof google.sheets>,
+  sheets: SheetsClient,
   spreadsheetId: string,
   tabName: string,
-) {
+): Promise<number | null> {
   console.info("[Google Sheets] Loading spreadsheet metadata.");
   const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
   const titles =
@@ -172,9 +207,10 @@ async function ensureSheetExists(
     (sheet) => sheet.properties?.title === tabName,
   );
 
-  if (existingSheet?.properties?.sheetId !== undefined) {
+  const existingSheetId = existingSheet?.properties?.sheetId;
+  if (typeof existingSheetId === "number") {
     console.info("[Google Sheets] Target tab exists:", tabName);
-    return existingSheet.properties.sheetId;
+    return existingSheetId;
   }
 
   console.info("[Google Sheets] Target tab missing. Creating tab:", tabName);
@@ -197,8 +233,11 @@ async function ensureSheetExists(
   const addedSheetId =
     response.data.replies?.[0]?.addSheet?.properties?.sheetId;
 
-  if (addedSheetId === undefined) {
-    throw new Error(`Google Sheets tab was created but sheet ID was not returned for ${tabName}.`);
+  if (typeof addedSheetId !== "number") {
+    console.warn(
+      `[Google Sheets] Tab was created but Google did not return a numeric sheet ID for ${tabName}. Layout formatting will be skipped.`,
+    );
+    return null;
   }
 
   return addedSheetId;
@@ -208,14 +247,28 @@ function quoteSheetName(tabName: string) {
   return `'${tabName.replace(/'/g, "''")}'`;
 }
 
+async function createSheetsClient(
+  serviceAccountEmail: string,
+  privateKey: string,
+): Promise<SheetsClient> {
+  const { google } = await import("googleapis");
+  const auth = new google.auth.JWT({
+    email: serviceAccountEmail,
+    key: privateKey,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+
+  return google.sheets({ version: "v4", auth }) as unknown as SheetsClient;
+}
+
 async function applyPremiumSheetLayout(
-  sheets: ReturnType<typeof google.sheets>,
+  sheets: SheetsClient,
   spreadsheetId: string,
   sheetId: number,
 ) {
   console.info("[Google Sheets] Applying premium sheet layout to sheet ID:", sheetId);
 
-  const requests = [
+  const requests: BatchUpdateRequest[] = [
     {
       updateSheetProperties: {
         properties: {
@@ -378,7 +431,30 @@ async function applyPremiumSheetLayout(
   );
 }
 
-function columnWidths(sheetId: number) {
+async function safelyApplyPremiumSheetLayout(
+  sheets: SheetsClient,
+  spreadsheetId: string,
+  tabName: string,
+  sheetId: number | null,
+) {
+  if (typeof sheetId !== "number") {
+    console.warn(
+      `[Google Sheets] Skipping premium layout because no numeric sheet ID was available for tab: ${tabName}`,
+    );
+    return;
+  }
+
+  try {
+    await applyPremiumSheetLayout(sheets, spreadsheetId, sheetId);
+  } catch (error) {
+    console.warn(
+      `[Google Sheets] Premium layout failed for tab ${tabName}, but order saving will continue.`,
+      error,
+    );
+  }
+}
+
+function columnWidths(sheetId: number): BatchUpdateRequest[] {
   const widths = [170, 160, 180, 150, 220, 280, 270, 95, 135, 135, 180, 170, 240];
 
   return widths.map((width, index) => ({
