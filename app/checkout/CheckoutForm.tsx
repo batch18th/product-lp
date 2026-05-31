@@ -66,11 +66,7 @@ export function CheckoutForm() {
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        throw new Error(
-          response.status === 400
-            ? result.error || ORDER_ERROR_MESSAGE
-            : ORDER_ERROR_MESSAGE,
-        );
+        throw new Error(result.error || ORDER_ERROR_MESSAGE);
       }
 
       const params = new URLSearchParams({

@@ -116,6 +116,7 @@ export async function appendOrderToSheet(order: OrderRecord) {
         updatedCells: response.data.updates?.updatedCells,
       }),
     );
+    return true;
   } catch (error) {
     console.error("[Google Sheets] Append failed:", error);
     throw error;
@@ -248,6 +249,7 @@ function getGoogleSheetsConfig(): {
   );
   const tabName = "T-shirt order";
 
+  console.info("[Google Sheets] Selected Google Sheet ID:", sheetId || "missing");
   console.info("[Google Sheets] Spreadsheet ID:", sheetId ? "loaded" : "missing");
   console.info(
     "[Google Sheets] Service account email:",

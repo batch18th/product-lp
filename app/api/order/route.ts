@@ -8,7 +8,9 @@ const PUBLIC_ORDER_ERROR =
 
 export async function POST(request: NextRequest) {
   try {
+    console.info("ORDER API START");
     const body = await request.json();
+    console.info("[Order] Received form data:", JSON.stringify(body));
     const validation = validateOrderInput(body);
 
     if (!validation.ok) {
@@ -26,28 +28,27 @@ export async function POST(request: NextRequest) {
     ]);
 
     console.info("[Order] Saving order to Google Sheets:", order.orderId);
-    await appendOrderToSheet(order);
+    const sheetSaved = await appendOrderToSheet(order);
     console.info("[Order] Google Sheets save completed:", order.orderId);
 
-    try {
-      await sendOrderEmails(order);
-      console.info("[Order] Email notifications completed:", order.orderId);
-    } catch (emailError) {
-      console.error(
-        "[Order] Email notification failed after Google Sheets save:",
-        emailError,
-      );
-    }
+    const emailResult = await sendOrderEmails(order);
+    console.info("[Order] Email notifications completed:", {
+      orderId: order.orderId,
+      ...emailResult,
+    });
 
     console.info("[Order] API success response:", order.orderId);
 
     return NextResponse.json({
       success: true,
       orderId: order.orderId,
+      sheetSaved,
+      adminEmailSent: emailResult.adminEmailSent,
+      customerEmailSent: emailResult.customerEmailSent,
       message: "Order submitted successfully.",
     });
   } catch (error) {
-    console.error("Order submission failed:", error);
+    console.error("[Order] Final failure response:", error);
 
     const message =
       process.env.NODE_ENV === "development" && error instanceof Error
