@@ -2,22 +2,15 @@ import Link from "next/link";
 import { CheckCircle2, Home } from "lucide-react";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
-import { formatMoney, product } from "@/lib/product";
 
 type ThankYouProps = {
   searchParams: Promise<{
     orderId?: string;
-    productName?: string;
-    quantity?: string;
-    totalPrice?: string;
   }>;
 };
 
 export default async function ThankYouPage({ searchParams }: ThankYouProps) {
   const params = await searchParams;
-  const productName = params.productName || product.displayName;
-  const quantity = Number(params.quantity || 1);
-  const totalPrice = Number(params.totalPrice || product.offerPrice);
 
   return (
     <>
@@ -31,18 +24,19 @@ export default async function ThankYouPage({ searchParams }: ThankYouProps) {
           Order received
         </p>
         <h1 className="mt-2 text-3xl font-black leading-tight text-[#11100e] sm:text-4xl">
-          Thank you for your order!
+          Thank you for your order.
         </h1>
         <p className="mx-auto mt-4 max-w-xl leading-7 text-[#645f58]">
-          Our sales representative will call you soon to confirm your order.
+          We have received your order successfully.
         </p>
 
         <div className="mt-7 grid gap-3 rounded-2xl border border-[#e8e0d2] bg-[#fffaf0] p-5 text-left">
           {params.orderId ? <Info label="Order ID" value={params.orderId} /> : null}
-          <Info label="Product ordered" value={productName} />
-          <Info label="Quantity" value={String(quantity)} />
-          <Info label="Total price" value={formatMoney(totalPrice)} />
           <Info label="Payment method" value="Cash On Delivery" />
+          <Info
+            label="Next step"
+            value="Our sales representative will call you soon to confirm your order."
+          />
         </div>
 
         <Link

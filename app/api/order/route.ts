@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     const order = createOrderRecord(validation.data);
+    console.info("[Order] Order ID generated:", order.orderId);
     const [{ appendOrderToSheet }, { sendOrderEmails }] = await Promise.all([
       import("@/lib/googleSheets"),
       import("@/lib/email"),
@@ -37,6 +38,8 @@ export async function POST(request: NextRequest) {
         emailError,
       );
     }
+
+    console.info("[Order] API success response:", order.orderId);
 
     return NextResponse.json({
       success: true,
