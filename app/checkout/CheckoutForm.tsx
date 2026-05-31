@@ -10,7 +10,8 @@ import { formatMoney, getOrderTotal, product } from "@/lib/product";
 
 type FormErrors = Record<string, string>;
 
-const ORDER_ERROR_MESSAGE = "Something went wrong. Please try again or contact us.";
+const ORDER_ERROR_MESSAGE =
+  "We could not submit your order right now. Please contact us on WhatsApp.";
 
 export function CheckoutForm() {
   const router = useRouter();
@@ -169,7 +170,7 @@ export function CheckoutForm() {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="animate-spin" size={18} />
-                    Submitting Order...
+                    Submitting your order...
                   </>
                 ) : (
                   "Order Now"

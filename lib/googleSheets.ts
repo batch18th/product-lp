@@ -50,16 +50,19 @@ type SheetsClient = {
 type BatchUpdateRequest = Record<string, unknown>;
 
 const columns = [
-  "Date",
-  "Full Name",
+  "Order ID",
+  "Date & Time",
+  "Customer Name",
   "Phone Number",
   "Email Address",
-  "Location",
-  "Product",
+  "Exact Location",
+  "Product Name",
   "Quantity",
-  "Price",
+  "Price Per Piece",
   "Delivery Fee",
-  "Total",
+  "Total Price",
+  "Payment Method",
+  "Status",
 ];
 
 export async function appendOrderToSheet(order: OrderRecord) {
@@ -71,6 +74,7 @@ export async function appendOrderToSheet(order: OrderRecord) {
   const quotedTabName = quoteSheetName(tabName);
   const deliveryFee = getOrderTotal(order.quantity).deliveryFee;
   const row = [
+    order.orderId,
     order.dateTime,
     order.customerName,
     order.phone,
@@ -81,6 +85,8 @@ export async function appendOrderToSheet(order: OrderRecord) {
     order.pricePerPiece,
     deliveryFee,
     order.totalPrice,
+    order.paymentMethod,
+    order.orderStatus,
   ];
 
   await ensureHeaderRow(sheets, sheetId, quotedTabName);
@@ -91,7 +97,7 @@ export async function appendOrderToSheet(order: OrderRecord) {
   try {
     const response = await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
-    range: `${quotedTabName}!A:J`,
+    range: `${quotedTabName}!A:M`,
     valueInputOption: "USER_ENTERED",
     insertDataOption: "INSERT_ROWS",
     requestBody: {
@@ -100,7 +106,7 @@ export async function appendOrderToSheet(order: OrderRecord) {
   });
 
     console.info(
-      "[Google Sheets] Append response:",
+      "[Google Sheets] Append success:",
       JSON.stringify({
         spreadsheetId: response.data.spreadsheetId,
         tableRange: response.data.tableRange,
@@ -133,10 +139,10 @@ async function ensureHeaderRow(
   spreadsheetId: string,
   quotedTabName: string,
 ) {
-  console.info("[Google Sheets] Checking header row:", `${quotedTabName}!A1:J1`);
+  console.info("[Google Sheets] Checking header row:", `${quotedTabName}!A1:M1`);
   const existing = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `${quotedTabName}!A1:J1`,
+    range: `${quotedTabName}!A1:M1`,
   });
 
   const existingHeader = existing.data.values?.[0];
@@ -151,7 +157,7 @@ async function ensureHeaderRow(
   console.info("[Google Sheets] Header row missing or outdated. Writing headers.");
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `${quotedTabName}!A1:J1`,
+    range: `${quotedTabName}!A1:M1`,
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [columns],
@@ -237,16 +243,18 @@ function getGoogleSheetsConfig(): {
 } {
   const sheetId = process.env.GOOGLE_SHEET_ID?.trim();
   const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim();
-  const privateKey = normalizePrivateKey(process.env.GOOGLE_PRIVATE_KEY);
-  const tabName = (process.env.GOOGLE_SHEET_TAB_NAME || "T-shirt order").trim();
-
-  console.info("[Google Sheets] Spreadsheet ID exists:", Boolean(sheetId));
-  console.info(
-    "[Google Sheets] Service account email exists:",
-    Boolean(serviceAccountEmail),
+  const privateKey = normalizePrivateKey(
+    process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
   );
-  console.info("[Google Sheets] Private key exists:", Boolean(privateKey));
-  console.info("[Google Sheets] Target sheet/tab name:", tabName);
+  const tabName = "T-shirt order";
+
+  console.info("[Google Sheets] Spreadsheet ID:", sheetId ? "loaded" : "missing");
+  console.info(
+    "[Google Sheets] Service account email:",
+    serviceAccountEmail ? "loaded" : "missing",
+  );
+  console.info("[Google Sheets] Private key:", privateKey ? "loaded" : "missing");
+  console.info("[Google Sheets] Sheet tab name used:", tabName);
 
   const missing = [
     !sheetId ? "GOOGLE_SHEET_ID" : "",
@@ -427,7 +435,7 @@ async function applyPremiumSheetLayout(
           startRowIndex: 1,
           endRowIndex: 1000,
           startColumnIndex: 7,
-          endColumnIndex: 10,
+          endColumnIndex: 11,
         },
         cell: {
           userEnteredFormat: {
@@ -444,7 +452,7 @@ async function applyPremiumSheetLayout(
           startRowIndex: 1,
           endRowIndex: 1000,
           startColumnIndex: 8,
-          endColumnIndex: 10,
+          endColumnIndex: 11,
         },
         cell: {
           userEnteredFormat: {

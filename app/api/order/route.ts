@@ -3,6 +3,9 @@ import { createOrderRecord, validateOrderInput } from "@/lib/order";
 
 export const runtime = "nodejs";
 
+const PUBLIC_ORDER_ERROR =
+  "We could not submit your order right now. Please contact us on WhatsApp.";
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -21,8 +24,19 @@ export async function POST(request: NextRequest) {
       import("@/lib/email"),
     ]);
 
+    console.info("[Order] Saving order to Google Sheets:", order.orderId);
     await appendOrderToSheet(order);
-    await sendOrderEmails(order);
+    console.info("[Order] Google Sheets save completed:", order.orderId);
+
+    try {
+      await sendOrderEmails(order);
+      console.info("[Order] Email notifications completed:", order.orderId);
+    } catch (emailError) {
+      console.error(
+        "[Order] Email notification failed after Google Sheets save:",
+        emailError,
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -35,7 +49,7 @@ export async function POST(request: NextRequest) {
     const message =
       process.env.NODE_ENV === "development" && error instanceof Error
         ? error.message
-        : "Something went wrong. Please try again or contact us.";
+        : PUBLIC_ORDER_ERROR;
 
     return NextResponse.json(
       {
