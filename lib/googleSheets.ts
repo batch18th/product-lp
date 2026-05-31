@@ -317,7 +317,30 @@ function normalizePrivateKey(value: string | undefined) {
     key = key.slice(begin, end + endMarker.length);
   }
 
-  return `${key}\n`;
+  return rebuildPemKey(key);
+}
+
+function rebuildPemKey(key: string) {
+  const beginMarker = "-----BEGIN PRIVATE KEY-----";
+  const endMarker = "-----END PRIVATE KEY-----";
+  let body = key;
+
+  if (body.includes(beginMarker)) {
+    body = body.slice(body.indexOf(beginMarker) + beginMarker.length);
+  }
+
+  if (body.includes(endMarker)) {
+    body = body.slice(0, body.indexOf(endMarker));
+  }
+
+  body = body.replace(/\s+/g, "");
+
+  if (!body) {
+    return key;
+  }
+
+  const lines = body.match(/.{1,64}/g) ?? [body];
+  return `${beginMarker}\n${lines.join("\n")}\n${endMarker}\n`;
 }
 
 async function applyPremiumSheetLayout(
