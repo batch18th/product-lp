@@ -140,12 +140,15 @@ async function ensureHeaderRow(
   });
 
   const existingHeader = existing.data.values?.[0];
-  if (existingHeader?.length) {
+  if (
+    existingHeader?.length &&
+    columns.every((column, index) => existingHeader[index] === column)
+  ) {
     console.info("[Google Sheets] Header row exists:", JSON.stringify(existingHeader));
     return;
   }
 
-  console.info("[Google Sheets] Header row missing. Writing headers.");
+  console.info("[Google Sheets] Header row missing or outdated. Writing headers.");
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     range: `${quotedTabName}!A1:J1`,
