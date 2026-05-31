@@ -32,13 +32,15 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Order submission failed:", error);
 
+    const message =
+      process.env.NODE_ENV === "development" && error instanceof Error
+        ? error.message
+        : "Something went wrong. Please try again or contact us.";
+
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Order submission failed. Please try again.",
+        error: message,
       },
       { status: 500 },
     );

@@ -10,6 +10,8 @@ import { formatMoney, getOrderTotal, product } from "@/lib/product";
 
 type FormErrors = Record<string, string>;
 
+const ORDER_ERROR_MESSAGE = "Something went wrong. Please try again or contact us.";
+
 export function CheckoutForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -63,7 +65,7 @@ export function CheckoutForm() {
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error || "Order submission failed. Please try again.");
+        throw new Error(result.error || ORDER_ERROR_MESSAGE);
       }
 
       const params = new URLSearchParams({
@@ -77,7 +79,7 @@ export function CheckoutForm() {
       setServerError(
         error instanceof Error
           ? error.message
-          : "Order submission failed. Please try again.",
+          : ORDER_ERROR_MESSAGE,
       );
       setIsSubmitting(false);
     }

@@ -1,4 +1,5 @@
 import type { OrderRecord } from "./order";
+import { getOrderTotal } from "./product";
 
 type SheetsClient = {
   spreadsheets: {
@@ -49,50 +50,27 @@ type SheetsClient = {
 type BatchUpdateRequest = Record<string, unknown>;
 
 const columns = [
-  "Order ID",
-  "Date & Time",
-  "Customer Name",
+  "Date",
+  "Full Name",
   "Phone Number",
   "Email Address",
-  "Exact Location",
-  "Product Name",
+  "Location",
+  "Product",
   "Quantity",
-  "Price Per Piece",
-  "Total Price",
-  "Payment Method",
-  "Order Status",
-  "Notes",
-];
-
-const orderStatusOptions = [
-  "New Order",
-  "Order Confirmed",
-  "Order Ongoing",
-  "Delivered",
-  "Cancelled",
+  "Price",
+  "Delivery Fee",
+  "Total",
 ];
 
 export async function appendOrderToSheet(order: OrderRecord) {
-  const sheetId = process.env.GOOGLE_SHEET_ID;
-  const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-  const tabName = process.env.GOOGLE_SHEET_TAB_NAME || "T-shirt order";
-
-  console.info("[Google Sheets] Spreadsheet ID:", sheetId || "(missing)");
-  console.info("[Google Sheets] Sheet tab name:", tabName);
-  console.info("[Google Sheets] Service account email:", serviceAccountEmail || "(missing)");
-
-  if (!sheetId || !serviceAccountEmail || !privateKey) {
-    throw new Error(
-      "Google Sheets credentials are missing. Add GOOGLE_SHEET_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, and GOOGLE_PRIVATE_KEY.",
-    );
-  }
+  const { privateKey, serviceAccountEmail, sheetId, tabName } =
+    getGoogleSheetsConfig();
 
   const sheets = await createSheetsClient(serviceAccountEmail, privateKey);
   const numericSheetId = await ensureSheetExists(sheets, sheetId, tabName);
   const quotedTabName = quoteSheetName(tabName);
+  const deliveryFee = getOrderTotal(order.quantity).deliveryFee;
   const row = [
-    order.orderId,
     order.dateTime,
     order.customerName,
     order.phone,
@@ -101,10 +79,8 @@ export async function appendOrderToSheet(order: OrderRecord) {
     order.productName,
     order.quantity,
     order.pricePerPiece,
+    deliveryFee,
     order.totalPrice,
-    order.paymentMethod,
-    order.orderStatus,
-    order.notes,
   ];
 
   await ensureHeaderRow(sheets, sheetId, quotedTabName);
@@ -115,7 +91,7 @@ export async function appendOrderToSheet(order: OrderRecord) {
   try {
     const response = await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
-    range: `${quotedTabName}!A:M`,
+    range: `${quotedTabName}!A:J`,
     valueInputOption: "USER_ENTERED",
     insertDataOption: "INSERT_ROWS",
     requestBody: {
@@ -141,19 +117,8 @@ export async function appendOrderToSheet(order: OrderRecord) {
 }
 
 export async function formatOrderSheetLayout() {
-  const sheetId = process.env.GOOGLE_SHEET_ID;
-  const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-  const tabName = process.env.GOOGLE_SHEET_TAB_NAME || "T-shirt order";
-
-  console.info("[Google Sheets] Formatting spreadsheet ID:", sheetId || "(missing)");
-  console.info("[Google Sheets] Formatting tab:", tabName);
-
-  if (!sheetId || !serviceAccountEmail || !privateKey) {
-    throw new Error(
-      "Google Sheets credentials are missing. Add GOOGLE_SHEET_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, and GOOGLE_PRIVATE_KEY.",
-    );
-  }
+  const { privateKey, serviceAccountEmail, sheetId, tabName } =
+    getGoogleSheetsConfig();
 
   const sheets = await createSheetsClient(serviceAccountEmail, privateKey);
   const numericSheetId = await ensureSheetExists(sheets, sheetId, tabName);
@@ -168,10 +133,10 @@ async function ensureHeaderRow(
   spreadsheetId: string,
   quotedTabName: string,
 ) {
-  console.info("[Google Sheets] Checking header row:", `${quotedTabName}!A1:M1`);
+  console.info("[Google Sheets] Checking header row:", `${quotedTabName}!A1:J1`);
   const existing = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `${quotedTabName}!A1:M1`,
+    range: `${quotedTabName}!A1:J1`,
   });
 
   const existingHeader = existing.data.values?.[0];
@@ -183,7 +148,7 @@ async function ensureHeaderRow(
   console.info("[Google Sheets] Header row missing. Writing headers.");
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `${quotedTabName}!A1:M1`,
+    range: `${quotedTabName}!A1:J1`,
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [columns],
@@ -259,6 +224,100 @@ async function createSheetsClient(
   });
 
   return google.sheets({ version: "v4", auth }) as unknown as SheetsClient;
+}
+
+function getGoogleSheetsConfig(): {
+  sheetId: string;
+  serviceAccountEmail: string;
+  privateKey: string;
+  tabName: string;
+} {
+  const sheetId = process.env.GOOGLE_SHEET_ID?.trim();
+  const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim();
+  const privateKey = normalizePrivateKey(process.env.GOOGLE_PRIVATE_KEY);
+  const tabName = (process.env.GOOGLE_SHEET_TAB_NAME || "T-shirt order").trim();
+
+  console.info("[Google Sheets] Spreadsheet ID exists:", Boolean(sheetId));
+  console.info(
+    "[Google Sheets] Service account email exists:",
+    Boolean(serviceAccountEmail),
+  );
+  console.info("[Google Sheets] Private key exists:", Boolean(privateKey));
+  console.info("[Google Sheets] Target sheet/tab name:", tabName);
+
+  const missing = [
+    !sheetId ? "GOOGLE_SHEET_ID" : "",
+    !serviceAccountEmail ? "GOOGLE_SERVICE_ACCOUNT_EMAIL" : "",
+    !privateKey ? "GOOGLE_PRIVATE_KEY" : "",
+  ].filter(Boolean);
+
+  if (missing.length > 0 || !sheetId || !serviceAccountEmail || !privateKey) {
+    throw new Error(
+      `Google Sheets credentials are missing. Add ${missing.join(", ")}.`,
+    );
+  }
+
+  if (!privateKey.includes("-----BEGIN PRIVATE KEY-----")) {
+    throw new Error(
+      "GOOGLE_PRIVATE_KEY is not formatted correctly. Paste the full service account private key and keep escaped newline characters as \\n in Vercel.",
+    );
+  }
+
+  return {
+    sheetId,
+    serviceAccountEmail,
+    privateKey,
+    tabName,
+  };
+}
+
+function normalizePrivateKey(value: string | undefined) {
+  if (!value) return "";
+
+  let key = value
+    .trim()
+    .replace(/^GOOGLE_PRIVATE_KEY=/, "")
+    .trim();
+
+  if (key.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(key) as { private_key?: string };
+      key = parsed.private_key || key;
+    } catch {
+      console.warn("[Google Sheets] GOOGLE_PRIVATE_KEY looked like JSON but could not be parsed.");
+    }
+  }
+
+  key = key
+    .replace(/^"private_key"\s*:\s*/i, "")
+    .replace(/^private_key\s*:\s*/i, "")
+    .replace(/^GOOGLE_PRIVATE_KEY\s*=\s*/i, "")
+    .trim();
+
+  if (
+    (key.startsWith('"') && key.endsWith('"')) ||
+    (key.startsWith("'") && key.endsWith("'"))
+  ) {
+    key = key.slice(1, -1);
+  }
+
+  key = key
+    .replace(/\\\\r\\\\n/g, "\\n")
+    .replace(/\\\\n/g, "\\n")
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .trim();
+
+  const begin = key.indexOf("-----BEGIN PRIVATE KEY-----");
+  const endMarker = "-----END PRIVATE KEY-----";
+  const end = key.indexOf(endMarker);
+
+  if (begin >= 0 && end >= 0) {
+    key = key.slice(begin, end + endMarker.length);
+  }
+
+  return `${key}\n`;
 }
 
 async function applyPremiumSheetLayout(
@@ -373,26 +432,6 @@ async function applyPremiumSheetLayout(
       },
     },
     {
-      setDataValidation: {
-        range: {
-          sheetId,
-          startRowIndex: 1,
-          endRowIndex: 1000,
-          startColumnIndex: 11,
-          endColumnIndex: 12,
-        },
-        rule: {
-          condition: {
-            type: "ONE_OF_LIST",
-            values: orderStatusOptions.map((status) => ({ userEnteredValue: status })),
-          },
-          inputMessage: "Select current order status",
-          strict: true,
-          showCustomUi: true,
-        },
-      },
-    },
-    {
       setBasicFilter: {
         filter: {
           range: {
@@ -457,7 +496,7 @@ async function safelyApplyPremiumSheetLayout(
 function columnWidths(sheetId: number): BatchUpdateRequest[] {
   const widths = [170, 160, 180, 150, 220, 280, 270, 95, 135, 135, 180, 170, 240];
 
-  return widths.map((width, index) => ({
+  return widths.slice(0, columns.length).map((width, index) => ({
     updateDimensionProperties: {
       range: {
         sheetId,
