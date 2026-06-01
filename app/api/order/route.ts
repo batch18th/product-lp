@@ -11,6 +11,20 @@ export async function POST(request: NextRequest) {
     console.info("ORDER API START");
     const body = await request.json();
     console.info("[Order] Received form data:", JSON.stringify(body));
+    console.log("Received order data:", body);
+    console.log("GOOGLE_SHEET_ID exists:", !!process.env.GOOGLE_SHEET_ID);
+    console.log(
+      "GOOGLE_SERVICE_ACCOUNT_EMAIL exists:",
+      !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    );
+    console.log("GOOGLE_PRIVATE_KEY exists:", !!process.env.GOOGLE_PRIVATE_KEY);
+    console.log("ADMIN_EMAIL exists:", !!process.env.ADMIN_EMAIL);
+    console.log("EMAIL API KEY exists:", !!process.env.RESEND_API_KEY);
+    console.log(
+      "GMAIL APP PASSWORD exists:",
+      !!(process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS),
+    );
+    console.log("Using sheet tab:", "T-shirt order");
     const validation = validateOrderInput(body);
 
     if (!validation.ok) {
@@ -49,6 +63,15 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("[Order] Final failure response:", error);
+    console.error("ORDER SUBMISSION FAILED:", error);
+    console.error(
+      "ERROR MESSAGE:",
+      error instanceof Error ? error.message : "Unknown error",
+    );
+    console.error(
+      "ERROR STACK:",
+      error instanceof Error ? error.stack : "No stack available",
+    );
 
     const message =
       process.env.NODE_ENV === "development" && error instanceof Error

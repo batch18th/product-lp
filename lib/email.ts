@@ -10,8 +10,15 @@ export type EmailSendResult = {
 
 export async function sendOrderEmails(order: OrderRecord) {
   const businessEmail =
-    process.env.ADMIN_EMAIL || process.env.BUSINESS_EMAIL || "batch18th1990@gmail.com";
-  const from = process.env.EMAIL_FROM || process.env.SMTP_USER || product.replyToEmail;
+    usableEnv(process.env.ADMIN_EMAIL) ||
+    usableEnv(process.env.BUSINESS_EMAIL) ||
+    "batch18th1990@gmail.com";
+  const from =
+    usableEnv(process.env.EMAIL_FROM) ||
+    usableEnv(process.env.SENDER_EMAIL) ||
+    usableEnv(process.env.GMAIL_USER) ||
+    usableEnv(process.env.SMTP_USER) ||
+    product.replyToEmail;
   const brandName = process.env.BRAND_NAME || product.brandName;
 
   console.info("[Email] Admin email:", businessEmail ? "loaded" : "missing");
@@ -56,15 +63,21 @@ export async function sendOrderEmails(order: OrderRecord) {
 }
 
 function createTransporter() {
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 587);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const host = usableEnv(process.env.SMTP_HOST) || "smtp.gmail.com";
+  const port = Number(usableEnv(process.env.SMTP_PORT) || 465);
+  const user = usableEnv(process.env.GMAIL_USER) || usableEnv(process.env.SMTP_USER);
+  const pass =
+    usableEnv(process.env.GMAIL_APP_PASSWORD) || usableEnv(process.env.SMTP_PASS);
 
   console.info("[Email] SMTP_HOST:", host ? "loaded" : "missing");
   console.info("[Email] SMTP_PORT:", Number.isFinite(port) ? port : "missing");
   console.info("[Email] SMTP_USER:", user ? "loaded" : "missing");
   console.info("[Email] SMTP_PASS:", pass ? "loaded" : "missing");
+  console.info("[Email] GMAIL_USER:", process.env.GMAIL_USER ? "loaded" : "missing");
+  console.info(
+    "[Email] GMAIL_APP_PASSWORD:",
+    process.env.GMAIL_APP_PASSWORD ? "loaded" : "missing",
+  );
 
   if (!host || !user || !pass) {
     throw new Error(
@@ -78,4 +91,21 @@ function createTransporter() {
     secure: port === 465,
     auth: { user, pass },
   });
+}
+
+function usableEnv(value: string | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed) return "";
+
+  const lower = trimmed.toLowerCase();
+  if (
+    lower.startsWith("your-") ||
+    lower.includes("your app password") ||
+    lower.includes("your-gmail-app-password") ||
+    lower.includes("your-google-private-key")
+  ) {
+    return "";
+  }
+
+  return trimmed;
 }
