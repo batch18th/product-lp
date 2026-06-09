@@ -71,6 +71,7 @@ export function CheckoutForm() {
 
       const params = new URLSearchParams({
         orderId: result.orderId,
+        totalPrice: String(order.totalPrice),
       });
       router.push(`/thank-you?${params.toString()}`);
     } catch (error) {

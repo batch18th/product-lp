@@ -1,19 +1,24 @@
 import Link from "next/link";
 import { CheckCircle2, Home } from "lucide-react";
+import { MetaPurchaseEvent } from "@/components/MetaPurchaseEvent";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
+import { product } from "@/lib/product";
 
 type ThankYouProps = {
   searchParams: Promise<{
     orderId?: string;
+    totalPrice?: string;
   }>;
 };
 
 export default async function ThankYouPage({ searchParams }: ThankYouProps) {
   const params = await searchParams;
+  const purchaseValue = getPurchaseValue(params.totalPrice);
 
   return (
     <>
+      <MetaPurchaseEvent orderId={params.orderId} value={purchaseValue} />
       <SiteHeader />
       <main className="grid min-h-[calc(100vh-4rem)] place-items-center bg-[#fbfaf7] px-4 py-10">
       <section className="card-surface w-full max-w-2xl rounded-2xl p-6 text-center sm:p-10">
@@ -51,6 +56,11 @@ export default async function ThankYouPage({ searchParams }: ThankYouProps) {
     <SiteFooter />
     </>
   );
+}
+
+function getPurchaseValue(totalPrice?: string) {
+  const value = Number(totalPrice);
+  return Number.isFinite(value) && value > 0 ? value : product.offerPrice;
 }
 
 function Info({ label, value }: { label: string; value: string }) {
